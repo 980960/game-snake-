@@ -1,6 +1,7 @@
 const [w, h, tr, td] = [20, 20, 32, 32];
 let snake = null;
 let game = null;
+let foodxy = [];
 //方块
 function Cube(x, y, classname) {
     this.x = x * w;
@@ -83,26 +84,30 @@ Snake.prototype.getnext = function () {
         this.head.x / 20 + this.snakedirection.x, this.head.y / 20 + this.snakedirection.y
     ]
     //撞到自己
-    this.body.forEach(function (value) {
-        if (value[0] == nexthead[0] && value[1] == nexthead[1]) {
+    this.body.forEach(function (s) {
+        if (s[0] == nexthead[0] && s[1] == nexthead[1]) {
             console.log("撞到自己");
+            snake.nextTodo.over();
             return;
         }
     })
     //撞墙
     if (nexthead[0] > 31 || nexthead[0] < 0 || nexthead[1] > 31 || nexthead[1] < 0) {
         console.log("撞墙了");
+        this.nextTodo.over();
         return;
     }
     //撞到食物
-
+    if (nexthead[0] == foodxy[0] && nexthead[1] == foodxy[1]) {
+        this.nextTodo.eat.call(this);
+    }
     //什么都没撞到，走
     this.nextTodo.move.call(this);//改变this指向
 }
 //处理下一位置后要做的事
 Snake.prototype.nextTodo = {
     //走
-    move: function () {
+    move: function (add) {
         let newbody = new Cube(this.head.x / 20, this.head.y / 20, 'snakeBody');//创建身体方块
         //更新链表关系
 
@@ -116,7 +121,6 @@ Snake.prototype.nextTodo = {
 
         let newhead = new Cube(this.head.x / 20 + this.snakedirection.x, this.head.y / 20 + this.snakedirection.y, 'snakeHead');//创建头方块
         //更新链表关系
-
         newhead.next = newbody;
         newhead.last = null;
         newbody.last = newhead;
@@ -124,22 +128,27 @@ Snake.prototype.nextTodo = {
         newhead.create();
         this.body.unshift([newhead.x / 20, newhead.y / 20]);//添加到数组首位
         this.head = newhead;//更新head
-
-        this.foot.remove();
-        this.body.pop();//删除数组尾部
-        // this.foot = new Cube(this.body[this.body.length - 1][0], this.body[this.body.length - 1][1], 'snakeBody');//更新foot
-        this.foot = this.foot.last;
+        if (!add) {
+            this.foot.remove();
+            this.body.pop();//删除数组尾部
+            // this.foot = new Cube(this.body[this.body.length - 1][0], this.body[this.body.length - 1][1], 'snakeBody');//更新foot
+            this.foot = this.foot.last;
+        }
     },
     //吃
     eat: function () {
-
+        this.nextTodo.move.call(this, true);
+        createfood();
+        game.score++;
     },
     //结束
     over: function () {
-
+        clearInterval(game.timer);
+        alert('你的得分为：' + game.score);
+        startbtn.style.display = 'block';
     }
 }
-snake = new Snake();
+
 
 
 //创建食物
@@ -148,22 +157,30 @@ function createfood() {
     let x = Math.round(Math.random() * 31);
     let y = Math.round(Math.random() * 31);
     let newfood = new Cube(x, y, "food");
-    snake.body.forEach(function (value) {
-        if (value[0] == x && value(1) == y) {
+    snake.body.forEach(function (b) {
+        if (b[0] == x && b(1) == y) {
             include = ture;
         }
     })
     if (!include) {
-        newfood.create();
+        var foodDom = document.querySelector('.food');
+        if (foodDom) {
+            foodDom.style.top = y * 20 + 'px';
+            foodDom.style.left = x * 20 + 'px';
+        }
+        else {
+            newfood.create();
+        }
     }
+    foodxy = [x, y];
 }
-
 
 function Game() {
     this.timer = null;
-    this.score - 0;
+    this.score = 0;
 }
 Game.prototype.init = function () {
+
     snake.init();
     // snake.getnext();
     createfood();
@@ -184,12 +201,38 @@ Game.prototype.init = function () {
     }
     this.start();
 }
-
+Game.prototype.pause = function () {
+    clearInterval(game.timer);
+}
 Game.prototype.start = function () {
     this.timer = setInterval(() => {
         snake.getnext();
     }, 200);
 }
-
 game = new Game();
-game.init();
+snake = new Snake();
+//开始游戏
+let startbtn = document.getElementById('startbtn');
+let contentDiv = document.getElementById('content');
+startbtn.onclick = function (e) {
+    e.stopPropagation();
+    contentDiv.innerHTML = '';
+    game = new Game();
+    snake = new Snake();
+    startbtn.style.display = 'none';
+    game.init();
+
+    //暂停
+    let boxClick = document.getElementById('boxClick');
+    let pausebtn = document.getElementById('pausebtn');
+    boxClick.addEventListener('click', function (e) {
+        game.pause();
+        pausebtn.style.display = 'block';
+    })
+    //继续
+    pausebtn.onclick = function (e) {
+        e.stopPropagation();
+        game.start();
+        pausebtn.style.display = 'none';
+    }
+}
